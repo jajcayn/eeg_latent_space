@@ -1,0 +1,17 @@
+black
+flake8
+hmmlearn
+isort
+jupyterlab
+matplotlib
+mne
+netcdf4
+numpy
+pandas
+pathos
+pingouin
+pytest
+seaborn
+scipy
+# tensorflow - build from source
+tqdm
