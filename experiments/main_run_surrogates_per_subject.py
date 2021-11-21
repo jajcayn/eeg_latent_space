@@ -19,10 +19,10 @@ from utils import RESULTS_ROOT, make_dirs, run_in_parallel, set_logger, today
 
 
 def _compute_latent(args):
-    recording, d_type, surr_type, no_states, data_filter, use_gfp = args
+    recording, d_type, surr_type, no_states, data_filter, use_gfp, seed = args
     # first, construct surrogates
     recording.construct_surrogates(
-        surrogate_type=surr_type, univariate=False, n_iterations=20
+        surrogate_type=surr_type, univariate=False, n_iterations=20, seed=seed
     )
     # now preprocess and run latent
     recording.preprocess(data_filter[0], data_filter[1])
@@ -67,12 +67,13 @@ def main(
     data_type="EC",
     use_gfp=True,
     workers=cpu_count(),
+    seed=None,
 ):
 
     result_dir = os.path.join(
         RESULTS_ROOT,
         f"{today()}_{surr_type.upper()}surrs_{no_states}{decomp_type}_"
-        f"{data_filter[0]}-{data_filter[1]}Hz_{data_type}_subjectwise",
+        f"{data_filter[0]}-{data_filter[1]}Hz_{data_type}_seeded_subjectwise",
     )
     make_dirs(result_dir)
     set_logger(log_filename=os.path.join(result_dir, "log"))
@@ -95,6 +96,7 @@ def main(
                 no_states,
                 data_filter,
                 use_gfp,
+                seed,
             )
             for recording in recordings
         ],
@@ -189,6 +191,7 @@ if __name__ == "__main__":
         help="data type: EC vs. EO",
     )
     parser.add_argument("--use_gfp", action="store_true", default=True)
+    parser.add_argument("--seed", type=int, default=None)
     parser.add_argument(
         "--workers",
         type=int,
@@ -206,4 +209,5 @@ if __name__ == "__main__":
         args.data_type,
         args.use_gfp,
         args.workers,
+        args.seed,
     )

@@ -49,10 +49,11 @@ class SurrogateRecording(SingleSubjectRecording):
         self._data = deepcopy(self._orig_data)
 
         # seed setting
-        seed = (
+        seed = kwargs.pop(
+            "seed",
             None
             if univariate
-            else np.random.randint(low=0, high=np.iinfo(np.uint32).max)
+            else np.random.randint(low=0, high=np.iinfo(np.uint32).max),
         )
 
         def get_surr(ts, surr_type, seed, **kwargs):
