@@ -3,6 +3,7 @@ flake8
 hmmlearn
 isort
 jupyterlab
+lightgbm
 matplotlib
 mne
 netcdf4
