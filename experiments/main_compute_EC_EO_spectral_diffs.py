@@ -25,9 +25,9 @@ BANDS = [
 
 
 def _compute_freq_stats_surrs(args):
-    recording, bands, data_type, surr_type, surr_no = args
+    recording, bands, data_type, surr_type, surr_no, seed = args
     recording.construct_surrogates(
-        surrogate_type=surr_type, univariate=False, n_iterations=20
+        surrogate_type=surr_type, univariate=False, n_iterations=20, seed=seed
     )
     events, event_id = mne.events_from_annotations(recording._data)
     epochs = mne.Epochs(
@@ -130,7 +130,12 @@ def _compute_freq_stats_data(args):
 
 
 def main(
-    input_data, surr_type=None, num_surrs=0, workers=cpu_count(), time_avg=False
+    input_data,
+    surr_type=None,
+    num_surrs=0,
+    workers=cpu_count(),
+    time_avg=False,
+    seed=None,
 ):
     surr_suffix = "" if surr_type is None else f"_{surr_type}"
     result_dir = os.path.join(
@@ -183,6 +188,7 @@ def main(
                     "EC",
                     surr_type,
                     surr_no,
+                    seed,
                 )
                 for recording in recordings_EC
                 for surr_no in range(num_surrs)
@@ -199,6 +205,7 @@ def main(
                     "EO",
                     surr_type,
                     surr_no,
+                    seed,
                 )
                 for recording in recordings_EO
                 for surr_no in range(num_surrs)
@@ -232,6 +239,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_surrogates", type=int, help="number of surrogates", default=0
     )
+    parser.add_argument("--seed", type=int, default=None)
     parser.add_argument(
         "--workers",
         type=int,
@@ -251,4 +259,5 @@ if __name__ == "__main__":
         args.num_surrogates,
         args.workers,
         args.time_avg,
+        args.seed,
     )
