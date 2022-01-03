@@ -13,14 +13,16 @@ import mne
 import numpy as np
 import pandas as pd
 import scipy.stats as sts
+from sklearn.decomposition import PCA, FastICA
+
 from data_utils import (
     corr_vectors,
+    get_gfp_peaks,
     load_Koenig_microstate_templates,
     match_reorder_topomaps,
 )
 from hmm import segment_hmm
-from microstates import get_gfp_peaks, segment
-from sklearn.decomposition import PCA, FastICA
+from microstates import segment_microstates
 
 
 class SingleSubjectRecording:
@@ -124,7 +126,18 @@ class SingleSubjectRecording:
             return_attribution_only=True,
         )
         self.corrs_template = corr_w_template
+        # reorder latent maps
         self.latent_maps = self.latent_maps[attribution, :]
+        # reorder segmentation
+        new_segmentation = np.empty_like(self.latent_segmentation)
+        for k, v in enumerate(attribution):
+            new_segmentation[self.latent_segmentation == v] = k
+        self.latent_segmentation = new_segmentation
+        # recompute best polarity
+        self.polarity = np.sign(
+            np.choose(self.latent_segmentation, self.latent_maps.dot(self.data))
+        )
+        # GEV and GEV GFP should be the same
         if return_correlation:
             return corr_w_template
 
@@ -133,6 +146,7 @@ class SingleSubjectRecording:
         Redo segmentation based by midpoints - the GFP peaks are labelled based
         on correspondence and neighbours are smooth between them.
         """
+        assert self.latent_maps is not None
         if self.gfp_peaks is None:
             self.gfp()
         latent_segmentation = np.ones_like(self.gfp_curve, dtype=np.int)
@@ -163,10 +177,11 @@ class SingleSubjectRecording:
         latent_segmentation[midpoints[-1] :] = latent_segmentation[peaks[-1]]
         self.latent_segmentation = latent_segmentation
 
-    def run_latent_microstates(self, n_states, use_gfp=True, n_inits=50):
+    def run_latent_kmeans(self, n_states, use_gfp=True, n_inits=50):
         """
-        Run microstate segmentation. Gets canonical microstates and timeseries
-        segmentation using the dummy rule - maximal activation.
+        Run microstate segmentation. Gets canonical microstates using modified
+        K-Means clustering and timeseries segmentation using the dummy rule -
+        maximal activation.
 
         :param n_states: number of canonical microstates
         :type n_states: int
@@ -180,8 +195,63 @@ class SingleSubjectRecording:
             self.polarity,
             self.gev_tot,
             self.gev_gfp,
-        ) = segment(
+        ) = segment_microstates(
             self.data,
+            method="mod_kmeans",
+            n_states=n_states,
+            use_gfp=use_gfp,
+            n_inits=n_inits,
+            return_polarity=True,
+        )
+
+    def run_latent_aahc(self, n_states, use_gfp=True, n_inits=50):
+        """
+        Run microstate segmentation. Gets canonical microstates using AAHC
+        algorithm and timeseries segmentation using the dummy rule -
+        maximal activation.
+
+        :param n_states: number of canonical microstates
+        :type n_states: int
+        :param n_inits: number of initialisations for the modified KMeans
+            algorithm
+        :type n_inits: int
+        """
+        (
+            self.latent_maps,
+            self.latent_segmentation,
+            self.polarity,
+            self.gev_tot,
+            self.gev_gfp,
+        ) = segment_microstates(
+            self.data,
+            method="AAHC",
+            n_states=n_states,
+            use_gfp=use_gfp,
+            n_inits=n_inits,
+            return_polarity=True,
+        )
+
+    def run_latent_taahc(self, n_states, use_gfp=True, n_inits=50):
+        """
+        Run microstate segmentation. Gets canonical microstates using TAAHC
+        algorithm and timeseries segmentation using the dummy rule -
+        maximal activation.
+
+        :param n_states: number of canonical microstates
+        :type n_states: int
+        :param n_inits: number of initialisations for the modified KMeans
+            algorithm
+        :type n_inits: int
+        """
+        (
+            self.latent_maps,
+            self.latent_segmentation,
+            self.polarity,
+            self.gev_tot,
+            self.gev_gfp,
+        ) = segment_microstates(
+            self.data,
+            method="TAAHC",
             n_states=n_states,
             use_gfp=use_gfp,
             n_inits=n_inits,
@@ -390,7 +460,14 @@ def get_group_latent(subject_maps, decomposition_type, subject_channels):
     :param subject_channels: list of all channel lists for all subjects
     :type subject_channels: list[list[str]]
     """
-    assert decomposition_type in ["microstates", "PCA", "ICA", "hmm"]
+    assert decomposition_type in [
+        "kmeans",
+        "AAHC",
+        "TAAHC",
+        "PCA",
+        "ICA",
+        "hmm",
+    ]
     assert len(subject_maps) == len(subject_channels)
     assert all(
         subject_maps[i].shape[1] == len(subject_channels[i])
@@ -417,9 +494,28 @@ def get_group_latent(subject_maps, decomposition_type, subject_channels):
     assert len(shapes) == 1, shapes
     no_states = subject_maps[0].shape[0]
     concat = np.concatenate(subject_maps, axis=0)
-    if decomposition_type == "microstates":
-        group_mean, _, _, _ = segment(
+    if decomposition_type == "kmeans":
+        group_mean, _, _, _ = segment_microstates(
             concat.T,
+            method="mod_kmeans",
+            n_states=no_states,
+            use_gfp=False,
+            return_polarity=False,
+            n_inits=50,
+        )
+    elif decomposition_type == "AAHC":
+        group_mean, _, _, _ = segment_microstates(
+            concat.T,
+            method="AAHC",
+            n_states=no_states,
+            use_gfp=False,
+            return_polarity=False,
+            n_inits=50,
+        )
+    elif decomposition_type == "TAAHC":
+        group_mean, _, _, _ = segment_microstates(
+            concat.T,
+            method="TAAHC",
             n_states=no_states,
             use_gfp=False,
             return_polarity=False,

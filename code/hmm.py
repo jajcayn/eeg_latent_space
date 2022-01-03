@@ -4,13 +4,13 @@ Set of helper functions for getting latent states using Hidden Markov Model.
 from copy import deepcopy
 
 import numpy as np
-from data_utils import corr_vectors
 from hmmlearn.hmm import GaussianHMM
-from microstates import get_gfp_peaks
 from scipy.stats import zscore
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+
+from data_utils import corr_vectors, get_gfp_peaks
 
 
 def segment_hmm(

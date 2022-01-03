@@ -26,8 +26,12 @@ def _compute_latent(args):
     )
     # now preprocess and run latent
     recording.preprocess(data_filter[0], data_filter[1])
-    if d_type == "microstates":
-        recording.run_latent_microstates(n_states=no_states, use_gfp=use_gfp)
+    if d_type == "kmeans":
+        recording.run_latent_kmeans(n_states=no_states, use_gfp=use_gfp)
+    elif d_type == "AAHC":
+        recording.run_latent_aahc(n_states=no_states, use_gfp=use_gfp)
+    elif d_type == "TAAHC":
+        recording.run_latent_taahc(n_states=no_states, use_gfp=use_gfp)
     elif d_type == "PCA":
         recording.run_latent_pca(n_states=no_states, use_gfp=use_gfp)
     elif d_type == "ICA":
@@ -45,7 +49,6 @@ def _compute_latent(args):
         n_states=no_states
     )
     recording.match_reorder_segmentation(ms_templates, channels_templates)
-    recording.reassign_segmentation_by_midpoints()
     recording.compute_segmentation_stats()
     recording.attrs = {
         "no_states": no_states,
@@ -165,7 +168,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "decomposition_type",
         type=str,
-        help="Type of decomposition: `microstates`, `PCA`, `ICA` or `hmm`",
+        choices=["kmeans", "AAHC", "TAAHC", "PCA", "ICA", "hmm"],
+        help="Type of decomposition: `kmeans`, `AAHC`, `TAAHC`, `PCA`, "
+        "`ICA` or `hmm`",
     )
     parser.add_argument(
         "surrogate_type",

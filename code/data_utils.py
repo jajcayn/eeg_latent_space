@@ -3,14 +3,42 @@ Convenience functions for data handling and basic operations.
 """
 
 import os
-from utils import DATA_ROOT
 from itertools import permutations
 
 import numpy as np
 import pandas as pd
 from scipy.io import loadmat
+from scipy.signal import convolve, find_peaks, get_window
+
+from utils import DATA_ROOT
 
 DEFAULT_TEMPLATES = os.path.join(DATA_ROOT, "MS-templates_Koenig")
+
+
+def get_gfp_peaks(data, min_peak_dist=2, smoothing=None, smoothing_window=100):
+    """
+    Compute GFP peaks.
+
+    :param data: data for GFP peaks, channels x samples
+    :type data: np.ndarray
+    :param min_peak_dist: minimum distance between two peaks
+    :type min_peak_dist: int
+    :param smoothing: smoothing window if some, None means to smoothing
+    :type smoothing: str|None
+    :param smoothing_window: window for smoothing, in samples
+    :type smoothing_window: int
+    :return: GFP peaks and GFP curve
+    :rtype: (list, np.ndarray)
+    """
+    gfp_curve = np.std(data, axis=0)
+    if smoothing is not None:
+        gfp_curve = convolve(
+            gfp_curve,
+            get_window(smoothing, Nx=smoothing_window),
+        )
+    gfp_peaks, _ = find_peaks(gfp_curve, distance=min_peak_dist)
+
+    return gfp_peaks, gfp_curve
 
 
 def load_Koenig_microstate_templates(n_states=4, path=DEFAULT_TEMPLATES):
