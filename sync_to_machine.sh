@@ -44,3 +44,4 @@ rsync -avzhP --delete \
 tests $dest
 
 rsync -avzhP meta_runner.sh $dest
+rsync -avzhP submit_all_jobs.sh $dest

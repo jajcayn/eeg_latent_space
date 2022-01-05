@@ -42,13 +42,13 @@ cd $SCRATCHDIR || exit 2
 
 echo "$PBS_JOBID is running on node `hostname -f` in a scratch directory $SCRATCHDIR" >> job_info.txt
 # for main
-# python3 -u experiments/$pyscript $SCRATCHDIR/data/data_LEMON $decomptype --no_states 4 --filter 2.0 20.0 --data_type $datatype --use_gfp --workers 30
+python3 -u experiments/$pyscript $SCRATCHDIR/data/data_LEMON $decomptype --no_states 4 --filter 2.0 20.0 --data_type $datatype --use_gfp --crop 200.0 --workers 30
 
 # for running surrogates
-# python3 -u experiments/$pyscript $SCRATCHDIR/data/data_LEMON $decomptype $surrtype --no_states 4 --filter 2.0 20.0 --data_type $datatype --use_gfp --workers 30 --seed 42
+# python3 -u experiments/$pyscript $SCRATCHDIR/data/data_LEMON $decomptype $surrtype --no_states 4 --filter 2.0 20.0 --data_type $datatype --use_gfp --crop 200.0 --workers 30 --seed 42
 
 # for EC/EO diff
-python3 -u experiments/$pyscript $SCRATCHDIR/data/data_LEMON $surrtype --num_surrogates 20 --workers 30 --time_avg --seed 42
+# python3 -u experiments/$pyscript $SCRATCHDIR/data/data_LEMON $surrtype --num_surrogates 20 --workers 30 --time_avg --seed 42
 
 cp -r $SCRATCHDIR $RESULTSDIR || export CLEAN_SCRATCH=false
 

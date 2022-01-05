@@ -136,10 +136,13 @@ def main(
     workers=cpu_count(),
     time_avg=False,
     seed=None,
+    crop=None,
 ):
     surr_suffix = "" if surr_type is None else f"_{surr_type}"
+    crop_str = f"_crop{crop}s" if crop is not None else ""
     result_dir = os.path.join(
-        RESULTS_ROOT, f"{today()}_EEG_ECvsEO_spectral_diffs{surr_suffix}"
+        RESULTS_ROOT,
+        f"{today()}_EEG_ECvsEO_spectral_diffs{surr_suffix}{crop_str}",
     )
     make_dirs(result_dir)
     set_logger(log_filename=os.path.join(result_dir, "log"))
@@ -148,6 +151,8 @@ def main(
     recordings_EC = []
     for data_file in sorted(glob(f"{input_data}/*_EC.set")):
         mne_data = mne.io.read_raw_eeglab(data_file, preload=True)
+        if crop is not None:
+            mne_data.crop(tmax=crop)
         subject_id = "-".join(os.path.basename(data_file).split(".")[:-1])
         recordings_EC.append(
             SingleSubjectRecording(subject_id=subject_id, data=mne_data)
@@ -157,6 +162,8 @@ def main(
     recordings_EO = []
     for data_file in sorted(glob(f"{input_data}/*_EO.set")):
         mne_data = mne.io.read_raw_eeglab(data_file, preload=True)
+        if crop is not None:
+            mne_data.crop(tmax=crop)
         subject_id = "-".join(os.path.basename(data_file).split(".")[:-1])
         recordings_EO.append(
             SingleSubjectRecording(subject_id=subject_id, data=mne_data)
@@ -252,6 +259,13 @@ if __name__ == "__main__":
         dest="time_avg",
         action="store_true",
     )
+    parser.add_argument(
+        "--crop",
+        type=float,
+        default=None,
+        help="whether to crop data before computation, None for no cropping "
+        "float in seconds for cropping",
+    )
     args = parser.parse_args()
     main(
         args.input_data,
@@ -260,4 +274,5 @@ if __name__ == "__main__":
         args.workers,
         args.time_avg,
         args.seed,
+        args.crop,
     )

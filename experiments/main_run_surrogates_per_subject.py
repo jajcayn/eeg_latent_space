@@ -69,14 +69,16 @@ def main(
     data_filter=(2.0, 20.0),
     data_type="EC",
     use_gfp=True,
+    crop=None,
     workers=cpu_count(),
     seed=None,
 ):
-
+    crop_str = f"crop{crop}s_" if crop is not None else ""
     result_dir = os.path.join(
         RESULTS_ROOT,
         f"{today()}_{surr_type.upper()}surrs_{no_states}{decomp_type}_"
-        f"{data_filter[0]}-{data_filter[1]}Hz_{data_type}_seeded_subjectwise",
+        f"{data_filter[0]}-{data_filter[1]}Hz_{data_type}_seeded_{crop_str}"
+        "subjectwise",
     )
     make_dirs(result_dir)
     set_logger(log_filename=os.path.join(result_dir, "log"))
@@ -84,6 +86,8 @@ def main(
     recordings = []
     for data_file in sorted(glob(f"{input_data}/*_{data_type}.set")):
         mne_data = mne.io.read_raw_eeglab(data_file, preload=True)
+        if crop is not None:
+            mne_data.crop(tmax=crop)
         subject_id = "-".join(os.path.basename(data_file).split(".")[:-1])
         orig_eeg = SingleSubjectRecording(subject_id=subject_id, data=mne_data)
         recordings.append(SurrogateRecording.from_data(orig_eeg))
@@ -196,6 +200,13 @@ if __name__ == "__main__":
         help="data type: EC vs. EO",
     )
     parser.add_argument("--use_gfp", action="store_true", default=True)
+    parser.add_argument(
+        "--crop",
+        type=float,
+        default=None,
+        help="whether to crop data before computation, None for no cropping "
+        "float in seconds for cropping",
+    )
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument(
         "--workers",
@@ -213,6 +224,7 @@ if __name__ == "__main__":
         args.filter,
         args.data_type,
         args.use_gfp,
+        args.crop,
         args.workers,
         args.seed,
     )
