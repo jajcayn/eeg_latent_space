@@ -1,6 +1,7 @@
 black
 flake8
 hmmlearn
+hurst
 isort
 jupyterlab
 lightgbm

@@ -6,6 +6,7 @@ Inspired by https://github.com/Frederic-vW/eeg_microstates
 import logging
 
 import numpy as np
+from hurst import compute_Hc
 from scipy.stats import chi2
 from tqdm import tqdm
 
@@ -33,6 +34,25 @@ def empirical_distribution(sequence, n_states=4):
     p /= sequence.shape[0]
     assert np.abs(p.sum() - 1.0) < 1e-6, p.sum()
     return p
+
+
+def empirical_trans_mat(sequence, n_states=4):
+    """
+    Compute empirical transition matrix of a sequence given n_states.
+
+    :param sequence: input sequence, should contain symbols starting from 0
+    :type sequence: np.ndarray
+    :param n_states: number of allowed states in the sequence, symbols then
+        should be in [0, n_states-1]
+    :type n_states: int
+    :return: empirical transition matrix of a sequence as [from, to]
+    :rtype: np.ndarray
+    """
+    prob_matrix = np.zeros((n_states, n_states))
+    for from_, to_ in zip(sequence, sequence[1:]):
+        prob_matrix[from_, to_] += 1
+    transition_mat = prob_matrix / np.nansum(prob_matrix, axis=1, keepdims=True)
+    return transition_mat
 
 
 def equilibrium_distribution(trans_mat):
@@ -223,7 +243,9 @@ def markov_chain_entropy_rate(distribution, trans_mat, log2=True):
     return h
 
 
-def lagged_mutual_information(sequence, n_states, max_lag, log2=True):
+def lagged_mutual_information(
+    sequence, n_states, max_lag, log2=True, pbar=True
+):
     """
     Time lagged mutual information of a sequence with n_states symbols.
 
@@ -237,11 +259,18 @@ def lagged_mutual_information(sequence, n_states, max_lag, log2=True):
     :param log2: whether to use base 2 logarithm [entropy in bits] or natural
         logarithm [entropy in nats]
     :type log2: bool
+    :param pbar: whether to use progress bar (useful in notebooks, bad in
+        scripts with potentially multiple progress bars)
+    :type pbar: bool
     :return: time-lagged mutual information, per lag
     :rtype: np.ndarray
     """
     mi = np.zeros(max_lag)
-    for lag in tqdm(range(max_lag)):
+    if pbar:
+        range_ = tqdm(range(max_lag))
+    else:
+        range_ = range(max_lag)
+    for lag in range_:
         nmax = sequence.shape[0] - lag
         h1 = H_1(sequence[:nmax], n_states, log2)
         h2 = H_1(sequence[lag : lag + nmax], n_states, log2)
@@ -276,8 +305,11 @@ def find_1st_aif_peak(lagged_mi, sampling_freq):
         m = 1 + np.where(zc == -2)[0]  # indices of local max.
         return m
 
-    jmax = mx0 + locmax(mi_smooth[mx0:])[0]
-    mx_mi = dt * jmax
+    try:
+        jmax = mx0 + locmax(mi_smooth[mx0:])[0]
+        mx_mi = dt * jmax
+    except IndexError:
+        jmax, mx_mi = np.nan, np.nan
 
     return jmax, mx_mi
 
@@ -433,3 +465,39 @@ def test_stationarity_conditional_homogeneity(
         return pval, pval < alpha, T, df
     else:
         return pval, pval < alpha
+
+
+def estimate_hurst(
+    sequence, min_window, max_window, sampling_freq, detailed=False
+):
+    """
+    Estimate Hurst exponent using `hurst` python package. Optionally return also
+    data for plotting.
+
+    :param sequence: sequence of symbols from which to estimate Hurst exponent
+    :type sequence: np.ndarray
+    :param min_window: minimum window for estimation, in seconds
+    :type min_window: float
+    :param max_window: minimum window for estimation, in seconds
+    :type max_window: float
+    :param sampling_freq: samping frequency of the sequence, in Hz
+    :type sampling_freq: float
+    :param detailed: if True, returns also intercept after log-log Hurst fit and
+        data for plotting, if False returns only estimate of Hurst exponent
+        (slope)
+    :type detailed: bool
+    :return: estimate of the Hurst exponent, optionally also intercept and
+        plotting data with [time_intervals, R/S ratios]
+    :rtype: float or (float, float, list[np.ndarray])
+    """
+    H, c, data = compute_Hc(
+        sequence,
+        kind="change",
+        simplified=False,
+        min_window=int(min_window * sampling_freq),
+        max_window=int(max_window * sampling_freq),
+    )
+    if detailed:
+        return H, c, data
+    else:
+        return H
