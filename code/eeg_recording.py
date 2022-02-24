@@ -274,7 +274,7 @@ class SingleSubjectRecording:
         self.polarity = np.sign(np.choose(segmentation, activation))
         if self.gfp_curve is None:
             self.gfp()
-        gfp_sum_sq = np.sum(self.gfp_curve ** 2)
+        gfp_sum_sq = np.sum(self.gfp_curve**2)
         peaks_sum_sq = np.sum(self.data[:, self.gfp_peaks].std(axis=0) ** 2)
         map_corr = corr_vectors(self.data, self.latent_maps[segmentation].T)
         gfp_corr = corr_vectors(
@@ -399,6 +399,7 @@ class SingleSubjectRecording:
         np.savez(
             os.path.join(path, f"{self.subject_id}{suffix}.npz"),
             latent_maps=self.latent_maps,
+            channels=self.info["ch_names"],
             latent_segmentation=self.latent_segmentation,
             polarity=self.polarity,
             gev_tot=self.gev_tot,
