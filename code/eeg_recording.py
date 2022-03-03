@@ -418,6 +418,8 @@ class SingleSubjectRecording:
         :rtype: pd.DataFrame
         """
         assert self.computed_stats
+        if not hasattr(self, "corrs_template"):
+            self.corrs_template = [np.nan] * self.latent_maps.shape[0]
         topo_names = list(string.ascii_uppercase)[: self.latent_maps.shape[0]]
         df = pd.DataFrame(
             columns=[

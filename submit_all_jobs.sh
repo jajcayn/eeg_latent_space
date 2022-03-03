@@ -23,11 +23,17 @@ target="praha1"
 pyscript="main_run_surrogates_per_subject.py"
 for datatype in "EC" "EO"
 do
-    for decomptype in "kmeans" "PCA" "ICA" "hmm" #"AAHC" "TAAHC"
+    # for decomptype in "kmeans" "PCA" "ICA" "hmm" #"AAHC" "TAAHC"
+    for decomptype in "AAHC" "TAAHC"
     do
         for surrtype in "FT" "AAFT" "IAAFT" "shuffle"
         do
-            qsub -l walltime=24:0:0 -q default@meta-pbs.metacentrum.cz -l select=1:ncpus=32:mem=120gb:scratch_local=10gb -v target=$target,pyscript=$pyscript,decomptype=$decomptype,datatype=$datatype,surrtype=$surrtype meta_runner.sh
+            if [ $decomptype == "AAHC" ] || [ $decomptype == "TAAHC" ]; then
+                comp_time=48
+            else
+                comp_time=24
+            fi
+            qsub -l walltime=$comp_time:0:0 -q default@meta-pbs.metacentrum.cz -l select=1:ncpus=32:mem=220gb:scratch_local=10gb -v target=$target,pyscript=$pyscript,decomptype=$decomptype,datatype=$datatype,surrtype=$surrtype meta_runner.sh
         done
     done
 done
