@@ -40,7 +40,7 @@ def main(
         folder_types = os.path.basename(folder).split("_")
         data_type = folder_types[-3]
         if data_type == "seeded":
-            data_type = folder_types[-3]
+            data_type = folder_types[-4]
         # properties
         df_latent = pd.read_csv(
             os.path.join(folder, "latent_stats.csv"), index_col=0

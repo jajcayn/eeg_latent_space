@@ -38,7 +38,8 @@ def get_random_gaussian_data(n_channels, length, sampling_rate, seed=None):
     random_cov = np.random.normal(0.0, 1.0, size=(n_channels, n_channels))
     data = pd.DataFrame(
         np.random.multivariate_normal(
-            mean=np.random.normal(0.0, 1.0, size=n_channels),
+            # mean=np.random.normal(0.0, 1.0, size=n_channels),
+            mean=[0.0] * n_channels,
             cov=np.dot(random_cov, random_cov.transpose()),
             size=(int(length * sampling_rate)),
         ),

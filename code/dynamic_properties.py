@@ -392,7 +392,7 @@ def test_markovianity_nth_order(
     T *= 2.0
     df = (n_states - 1.0) * (n_states - 1.0) * np.power(n_states, order)
     pval = chi2.sf(T, df, loc=0, scale=1)
-    logging.info(f"p-value: {pval:.2e} | t: {T:.3f} | df: {df:.1f}")
+    logging.debug(f"p-value: {pval:.2e} | t: {T:.3f} | df: {df:.1f}")
     if detailed:
         return pval, pval < alpha, T, df
     else:
@@ -460,7 +460,7 @@ def test_stationarity_conditional_homogeneity(
     df = (num_blocks - 1) * (n_states - 1) * n_states
 
     pval = chi2.sf(T, df, loc=0, scale=1)
-    logging.info(f"p-value: {pval:.2e} | t: {T:.3f} | df: {df:.1f}")
+    logging.debug(f"p-value: {pval:.2e} | t: {T:.3f} | df: {df:.1f}")
     if detailed:
         return pval, pval < alpha, T, df
     else:

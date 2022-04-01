@@ -3,6 +3,7 @@ Compute dynamic properties and entropy-based measures on already computed latent
 decompositions.
 """
 import argparse
+import logging
 import os
 import string
 from glob import glob
@@ -10,7 +11,7 @@ from glob import glob
 import dynamic_properties as dynprop
 import numpy as np
 import pandas as pd
-from utils import run_in_parallel
+from utils import run_in_parallel, set_logger
 
 K_MAX = 6
 MAX_LAG = 100
@@ -133,7 +134,9 @@ def _get_dynamic_props_per_subject(args):
 
 
 def main(input_glob, sampling_freq, log2):
+    set_logger()
     for folder in glob(input_glob):
+        logging.info(f"Computing on {os.path.basename(folder)}")
         df_latent = pd.read_csv(os.path.join(folder, "latent_stats.csv"))
         subjects = list(df_latent["subject_id"].unique())
         n_states = df_latent["latent map"].nunique()
