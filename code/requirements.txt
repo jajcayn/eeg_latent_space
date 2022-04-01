@@ -10,10 +10,10 @@ mne
 netcdf4
 numpy
 pandas
+patchworklib
 pathos
 pingouin
 pytest
 seaborn
 scipy
-# tensorflow - build from source
 tqdm
