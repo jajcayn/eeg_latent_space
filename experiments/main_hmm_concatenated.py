@@ -90,6 +90,7 @@ def _postprocess(args):
     recording.polarity = polarity
     recording.gev_tot = gev
     recording.gev_gfp = gev_gfp
+    recording.n_states = no_states
 
     ms_templates, channels_templates = load_Koenig_microstate_templates(
         n_states=no_states
@@ -144,7 +145,7 @@ def main(
         eeg = SingleSubjectRecording(subject_id=subject_id, data=mne_data)
         if surr_type is not None:
             eeg = SurrogateRecording.from_data(eeg)
-        recordings.append()
+        recordings.append(eeg)
     logging.info(f"Loaded {len(recordings)} data files")
     logging.info("Computing HMMconcat decomposition per subject...")
 

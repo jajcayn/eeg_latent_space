@@ -119,16 +119,16 @@ def match_reorder_topomaps(
     :type return_attribution_only: bool
     :return: best attribution or reordered maps, correlation of best attribution
         (if `return_correlation` == True)
-    :rtype: np.ndarray or list[int]|n.ndarray
+    :rtype: np.ndarray or list[int]|np.ndarray
     """
     assert maps_input.shape == maps_sortby.shape, (
         maps_input.shape,
         maps_sortby.shape,
     )
     n_maps = maps_input.shape[0]
-    best_corr_mean = -1
-    best_attribution = None
-    best_corr = None
+    best_corr_mean = -1.0
+    best_attribution = np.arange(maps_input.shape[0]).tolist()
+    best_corr = [-1.0] * 4
     for perm in permutations(range(n_maps)):
         corr_attr = np.abs(
             corr_vectors(maps_sortby, maps_input[perm, :], axis=1)

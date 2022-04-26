@@ -203,6 +203,7 @@ class SingleSubjectRecording:
             n_inits=n_inits,
             return_polarity=True,
         )
+        self.n_states = n_states
 
     def run_latent_aahc(self, n_states, use_gfp=True, n_inits=50):
         """
@@ -230,6 +231,7 @@ class SingleSubjectRecording:
             n_inits=n_inits,
             return_polarity=True,
         )
+        self.n_states = n_states
 
     def run_latent_taahc(self, n_states, use_gfp=True, n_inits=50):
         """
@@ -257,6 +259,7 @@ class SingleSubjectRecording:
             n_inits=n_inits,
             return_polarity=True,
         )
+        self.n_states = n_states
 
     def _run_latent_sklearn(self, sklearn_algo, n_states, use_gfp=True):
         algo = sklearn_algo(n_components=n_states)
@@ -286,6 +289,7 @@ class SingleSubjectRecording:
             sum((self.data[:, self.gfp_peaks].std(axis=0) * gfp_corr) ** 2)
             / peaks_sum_sq
         )
+        self.n_states = n_states
 
     def run_latent_pca(self, n_states, use_gfp=True):
         self._run_latent_sklearn(
@@ -316,6 +320,16 @@ class SingleSubjectRecording:
             pca_preprocess=pca_preprocess,
             return_polarity=True,
         )
+        self.n_states = n_states
+
+    def _assert_all_mstates(self, stats):
+        """
+        Fill out dicts if some state is not represented at all.
+        """
+        for ms_idx in range(self.n_states):
+            if ms_idx not in stats:
+                stats[ms_idx] = np.nan
+        return stats
 
     def _compute_lifespan(self):
         """
@@ -333,6 +347,7 @@ class SingleSubjectRecording:
             * 1000.0
             for ms_no in np.unique(self.latent_segmentation)
         }
+        self.avg_lifespan = self._assert_all_mstates(self.avg_lifespan)
 
     def _compute_coverage(self):
         """
@@ -345,6 +360,7 @@ class SingleSubjectRecording:
                 *np.unique(self.latent_segmentation, return_counts=True)
             )
         }
+        self.coverage = self._assert_all_mstates(self.coverage)
 
     def _compute_freq_of_occurrence(self):
         """
@@ -362,6 +378,7 @@ class SingleSubjectRecording:
                 self.latent_segmentation.shape[0] / self.info["sfreq"]
             )
         self.freq_occurence = freq_occurence
+        self.freq_occurence = self._assert_all_mstates(self.freq_occurence)
 
     def _compute_transition_matrix(self):
         """
