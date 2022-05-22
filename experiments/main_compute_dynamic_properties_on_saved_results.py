@@ -135,7 +135,7 @@ def _get_dynamic_props_per_subject(args):
 
 def main(input_glob, sampling_freq, log2):
     set_logger()
-    for folder in glob(input_glob):
+    for folder in sorted(glob(input_glob)):
         logging.info(f"Computing on {os.path.basename(folder)}")
         df_latent = pd.read_csv(os.path.join(folder, "latent_stats.csv"))
         subjects = list(df_latent["subject_id"].unique())
