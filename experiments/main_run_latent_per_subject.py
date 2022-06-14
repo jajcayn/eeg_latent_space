@@ -37,8 +37,8 @@ def _compute_latent(args):
             recording.run_latent_hmm(
                 n_states=no_states,
                 use_gfp=use_gfp,
-                pca_preprocess=0.9,
-                envelope=True,
+                pca_preprocess=None,
+                envelope=False,
             )
         except ValueError:
             return None

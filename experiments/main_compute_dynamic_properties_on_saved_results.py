@@ -27,19 +27,22 @@ def _get_dynamic_props_per_subject(args):
         "latent_segmentation"
     ]
     # basics
-    empirical_dist = dynprop.empirical_distribution(sequence, n_states)
-    trans_mat = dynprop.empirical_trans_mat(sequence, n_states)
-    equilibrium_dist = dynprop.equilibrium_distribution(trans_mat)
-    # entropy
-    mixing_time = dynprop.mixing_time(trans_mat)
-    entropy = dynprop.H_1(sequence, n_states, log2=log2)
-    max_entropy = dynprop.max_entropy(n_states, log2=log2)
-    ent_rate, excess_ent = dynprop.excess_entropy_rate(
-        sequence, n_states, kmax=K_MAX, log2=log2
-    )
-    mc_ent_rate = dynprop.markov_chain_entropy_rate(
-        empirical_dist, trans_mat, log2=log2
-    )
+    try:
+        empirical_dist = dynprop.empirical_distribution(sequence, n_states)
+        trans_mat = dynprop.empirical_trans_mat(sequence, n_states)
+        equilibrium_dist = dynprop.equilibrium_distribution(trans_mat)
+        # entropy
+        mixing_time = dynprop.mixing_time(trans_mat)
+        entropy = dynprop.H_1(sequence, n_states, log2=log2)
+        max_entropy = dynprop.max_entropy(n_states, log2=log2)
+        ent_rate, excess_ent = dynprop.excess_entropy_rate(
+            sequence, n_states, kmax=K_MAX, log2=log2
+        )
+        mc_ent_rate = dynprop.markov_chain_entropy_rate(
+            empirical_dist, trans_mat, log2=log2
+        )
+    except np.linalg.LinAlgError:
+        return pd.DataFrame()
     # AIF
     aif1 = dynprop.lagged_mutual_information(
         sequence,
