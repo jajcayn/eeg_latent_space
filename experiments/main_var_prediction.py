@@ -20,10 +20,11 @@ from data_utils import load_Koenig_microstate_templates
 from eeg_recording import SingleSubjectRecording
 from plotting import plot_eeg_topomaps
 from statsmodels.tsa.api import VAR
+from tqdm import tqdm
 from utils import RESULTS_ROOT, make_dirs, run_in_parallel, set_logger, today
 
-MAX_VAR_ORDER = 30
-SEGMENT_START = 3 * 60.0  # in seconds
+MAX_VAR_ORDER = 20
+SEGMENT_START = 1 * 60.0  # in seconds
 NO_STATES = 4
 DATA_FILTER = [2.0, 20.0]
 USE_GFP = True
@@ -125,19 +126,17 @@ def _compute_dynamical_stats(args):
     )
     _, aif_1st_peak_time = dynprop.find_1st_aif_peak(aif1, sampling_freq)
 
-    return (
-        pd.DataFrame(
-            {
-                "subject_id": subject_id,
-                "mixing time": mixing_time,
-                "entropy": entropy,
-                "max entropy": max_entropy,
-                "entropy_rate": ent_rate,
-                "MC entropy rate": mc_ent_rate,
-                "AIF 1st peak": aif_1st_peak_time,
-            },
-            index=[0],
-        ),
+    return pd.DataFrame(
+        {
+            "subject_id": subject_id,
+            "mixing time": mixing_time,
+            "entropy": entropy,
+            "max entropy": max_entropy,
+            "entropy_rate": ent_rate,
+            "MC entropy rate": mc_ent_rate,
+            "AIF 1st peak": aif_1st_peak_time,
+        },
+        index=[0],
     )
 
 
@@ -155,7 +154,7 @@ def main(
     result_dir = os.path.join(
         RESULTS_ROOT,
         f"{today()}_VARprocess_{data_type}_{no_random_subjects}subjects_"
-        f"{segment_length}s_segment_{var_total_length}VARlength",
+        f"{segment_length}s_segment_{var_total_length}s_VARlength",
     )
     make_dirs(result_dir)
     set_logger(log_filename=os.path.join(result_dir, "log"))
@@ -167,6 +166,7 @@ def main(
             all_files, size=no_random_subjects, replace=False
         ).tolist()
     )
+    assert len(chosen_files) == no_random_subjects
 
     logging.info("Estimating VAR order...")
     all_orders = run_in_parallel(
@@ -194,8 +194,9 @@ def main(
 
     logging.info("Computing microstates on everything...")
     all_data_recordings = []
+    logging.info("Adding real data 1st segment...")
     # real data first segment
-    for file in chosen_files:
+    for file in tqdm(chosen_files):
         subject_id = os.path.basename(file).split(".")[0]
         subject_id += "_1st-segment"
         mne_data = mne.io.read_raw_eeglab(file, preload=True)
@@ -204,7 +205,8 @@ def main(
             SingleSubjectRecording(subject_id=subject_id, data=mne_data)
         )
     # real data second segment
-    for file in chosen_files:
+    logging.info("Adding real data 2nd segment...")
+    for file in tqdm(chosen_files):
         subject_id = os.path.basename(file).split(".")[0]
         subject_id += "_2nd-segment"
         mne_data = mne.io.read_raw_eeglab(file, preload=True)
@@ -216,7 +218,9 @@ def main(
             SingleSubjectRecording(subject_id=subject_id, data=mne_data)
         )
     # VAR data total and per segment
-    n_var_segments = int(var_total_length / segment_length)
+    n_var_segments = int(np.ceil(var_total_length / segment_length))
+    logging.info("Adding VAR data in full and by segments...")
+    pbar = tqdm(total=no_random_subjects * (n_var_segments + 1))
     for (var_subject_id, var_data) in simulated_results:
         # full VAR simulation
         all_data_recordings.append(
@@ -224,6 +228,7 @@ def main(
                 subject_id=var_subject_id + "_VAR-full", data=deepcopy(var_data)
             )
         )
+        pbar.update(1)
         # per segment VAR simulation
         for var_segment in range(n_var_segments):
             temp_var_data = deepcopy(var_data)
@@ -243,13 +248,14 @@ def main(
                     subject_id=segment_subject_id, data=temp_var_data
                 )
             )
+            pbar.update(1)
     assert (
         len(all_data_recordings)
         == (no_random_subjects * 3) + no_random_subjects * n_var_segments
     )
     microstate_results = run_in_parallel(
         _compute_microstates,
-        [deepcopy(recording) for recording in all_data_recordings],
+        [recording for recording in all_data_recordings],
         workers=workers,
     )
     logging.info("Microstates done. Now saving stuff...")

@@ -8,9 +8,9 @@ import logging
 import os
 from datetime import datetime
 from functools import partial
-from multiprocessing import cpu_count
+from multiprocessing import Pool, cpu_count
 
-from pathos.multiprocessing import Pool
+# from pathos.multiprocessing import Pool
 from tqdm import tqdm
 
 # project structure
