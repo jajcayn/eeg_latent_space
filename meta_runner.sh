@@ -51,7 +51,7 @@ echo "$PBS_JOBID is running on node `hostname -f` in a scratch directory $SCRATC
 # python3 -u experiments/$pyscript $SCRATCHDIR/data/data_LEMON $surrtype --num_surrogates 20 --workers 30 --time_avg --seed 42
 
 # VAR process
-python3 -u experiments/main_var_prediction.py $SCRATCHDIR/data/data_LEMON 50 $segment_length --var_total_length $var_total_length --data_type EC --workers 30
+python3 -u experiments/main_var_prediction.py $SCRATCHDIR/data/data_LEMON 50 $segment_length --var_total_length $var_total_length --n_samples_var_segments $samples_segments --data_type EC --workers 10
 
 cp -r $SCRATCHDIR $RESULTSDIR || export CLEAN_SCRATCH=false
 

@@ -23,7 +23,7 @@ from statsmodels.tsa.api import VAR
 from tqdm import tqdm
 from utils import RESULTS_ROOT, make_dirs, run_in_parallel, set_logger, today
 
-MAX_VAR_ORDER = 20
+MAX_VAR_ORDER = 10
 SEGMENT_START = 1 * 60.0  # in seconds
 NO_STATES = 4
 DATA_FILTER = [2.0, 20.0]
@@ -145,6 +145,7 @@ def main(
     no_random_subjects,
     segment_length,
     var_total_length=30 * 60.0,
+    n_samples_var_segments=np.inf,
     data_type="EC",
     workers=cpu_count(),
 ):
@@ -220,7 +221,16 @@ def main(
     # VAR data total and per segment
     n_var_segments = int(np.ceil(var_total_length / segment_length))
     logging.info("Adding VAR data in full and by segments...")
-    pbar = tqdm(total=no_random_subjects * (n_var_segments + 1))
+    sampling_size = (
+        n_var_segments
+        if np.isinf(n_samples_var_segments)
+        else n_samples_var_segments
+    )
+    assert sampling_size <= n_var_segments
+    sampled_segments = sorted(
+        np.random.choice(n_var_segments, size=sampling_size, replace=False)
+    )
+    pbar = tqdm(total=no_random_subjects * (len(sampled_segments) + 1))
     for (var_subject_id, var_data) in simulated_results:
         # full VAR simulation
         all_data_recordings.append(
@@ -230,7 +240,7 @@ def main(
         )
         pbar.update(1)
         # per segment VAR simulation
-        for var_segment in range(n_var_segments):
+        for var_segment in sampled_segments:
             temp_var_data = deepcopy(var_data)
             segment_subject_id = (
                 var_subject_id + f"_VAR-{var_segment+1}-segment"
@@ -249,10 +259,9 @@ def main(
                 )
             )
             pbar.update(1)
-    assert (
-        len(all_data_recordings)
-        == (no_random_subjects * 3) + no_random_subjects * n_var_segments
-    )
+    assert len(all_data_recordings) == (
+        no_random_subjects * 3
+    ) + no_random_subjects * len(sampled_segments)
     microstate_results = run_in_parallel(
         _compute_microstates,
         [recording for recording in all_data_recordings],
@@ -354,6 +363,12 @@ if __name__ == "__main__":
         default=30 * 60.0,
     )
     parser.add_argument(
+        "--n_samples_var_segments",
+        type=int,
+        help="Whether to sample VAR segments to save memory",
+        default=np.inf,
+    )
+    parser.add_argument(
         "--data_type",
         type=str,
         default="EC",
@@ -372,6 +387,7 @@ if __name__ == "__main__":
         args.no_random_subjects,
         args.segment_length,
         args.var_total_length,
+        args.n_samples_var_segments,
         args.data_type,
         args.workers,
     )
