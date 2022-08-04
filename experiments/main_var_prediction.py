@@ -104,6 +104,54 @@ def _compute_microstates(args):
     return recording
 
 
+def _compute_microstates_var_segments(args):
+    var_subject_id, var_segment, segment_length, tmax, results_folder = args
+    # load var
+    full_var = mne.io.read_raw_fif(
+        os.path.join(results_folder, f"{var_subject_id}_var.fif"), preload=True
+    )
+    # crop
+    cropped = full_var.crop(tmin=var_segment * segment_length, tmax=tmax)
+    if (cropped.times[-1] - cropped.times[0]) < (segment_length - 0.1):
+        return
+    # compute microstates
+    recording = SingleSubjectRecording(
+        subject_id=var_subject_id + f"_VAR-{var_segment+1}-segment",
+        data=cropped,
+    )
+    recording.preprocess(DATA_FILTER[0], DATA_FILTER[1])
+    recording.run_latent_kmeans(n_states=NO_STATES, use_gfp=USE_GFP)
+    ms_templates, channels_templates = load_Koenig_microstate_templates(
+        n_states=NO_STATES
+    )
+    recording.match_reorder_segmentation(ms_templates, channels_templates)
+    recording.compute_segmentation_stats()
+    recording.attrs = {
+        "no_states": NO_STATES,
+        "filter": DATA_FILTER,
+        "decomposition_type": "modified K-Means",
+        "use_gfp": USE_GFP,
+    }
+    assert recording.computed_stats
+    return recording
+
+
+def _save_recordings(args):
+    recording, result_dir = args
+    recording.save_latent(path=result_dir)
+    plot_eeg_topomaps(
+        recording.latent_maps,
+        recording.info,
+        xlabels=[
+            f"r={np.abs(corr):.3f} vs. template"
+            for corr in recording.corrs_template
+        ],
+        tit=recording.subject_id,
+        fname=os.path.join(result_dir, f"{recording.subject_id}_topo.png"),
+        transparent=True,
+    )
+
+
 def _compute_dynamical_stats(args):
     sequence, sampling_freq, subject_id = args
     empirical_dist = dynprop.empirical_distribution(sequence, NO_STATES)
@@ -148,6 +196,7 @@ def main(
     n_samples_var_segments=np.inf,
     data_type="EC",
     workers=cpu_count(),
+    save_all=False,
 ):
     mne.set_log_level("error")
     warnings.filterwarnings("ignore")
@@ -162,12 +211,18 @@ def main(
 
     logging.info(f"Selecting {no_random_subjects} subjects at random...")
     all_files = glob(f"{input_data}/*_{data_type}.set")
-    chosen_files = sorted(
-        np.random.choice(
-            all_files, size=no_random_subjects, replace=False
-        ).tolist()
-    )
-    assert len(chosen_files) == no_random_subjects
+    if no_random_subjects == "all":
+        chosen_files = all_files
+        no_random_subjects = len(all_files)
+    else:
+        no_random_subjects = int(no_random_subjects)
+
+        chosen_files = sorted(
+            np.random.choice(
+                all_files, size=no_random_subjects, replace=False
+            ).tolist()
+        )
+        assert len(chosen_files) == no_random_subjects
 
     logging.info("Estimating VAR order...")
     all_orders = run_in_parallel(
@@ -194,7 +249,7 @@ def main(
     logging.info("All done and saved.")
 
     logging.info("Computing microstates on everything...")
-    all_data_recordings = []
+    full_data_recordings = []
     logging.info("Adding real data 1st segment...")
     # real data first segment
     for file in tqdm(chosen_files):
@@ -202,7 +257,7 @@ def main(
         subject_id += "_1st-segment"
         mne_data = mne.io.read_raw_eeglab(file, preload=True)
         mne_data.crop(tmin=SEGMENT_START, tmax=SEGMENT_START + segment_length)
-        all_data_recordings.append(
+        full_data_recordings.append(
             SingleSubjectRecording(subject_id=subject_id, data=mne_data)
         )
     # real data second segment
@@ -215,12 +270,34 @@ def main(
             tmin=SEGMENT_START + segment_length,
             tmax=SEGMENT_START + 2 * segment_length,
         )
-        all_data_recordings.append(
+        full_data_recordings.append(
             SingleSubjectRecording(subject_id=subject_id, data=mne_data)
         )
-    # VAR data total and per segment
+    # VAR data total
+    logging.info("Adding VAR data in full...")
+    for (var_subject_id, var_data) in simulated_results:
+        # full VAR simulation
+        full_data_recordings.append(
+            SingleSubjectRecording(
+                subject_id=var_subject_id + "_VAR-full", data=deepcopy(var_data)
+            )
+        )
+
+    assert len(full_data_recordings) == (no_random_subjects * 3), (
+        len(full_data_recordings),
+        no_random_subjects,
+    )
+    logging.info("Computing microstates on full data...")
+    full_microstate_results = run_in_parallel(
+        _compute_microstates,
+        [recording for recording in full_data_recordings],
+        workers=workers,
+    )
+    del full_data_recordings
+
+    # per segment VAR simulation
+    logging.info("Adding VAR data by segments...")
     n_var_segments = int(np.ceil(var_total_length / segment_length))
-    logging.info("Adding VAR data in full and by segments...")
     sampling_size = (
         n_var_segments
         if np.isinf(n_samples_var_segments)
@@ -230,56 +307,42 @@ def main(
     sampled_segments = sorted(
         np.random.choice(n_var_segments, size=sampling_size, replace=False)
     )
-    pbar = tqdm(total=no_random_subjects * (len(sampled_segments) + 1))
-    for (var_subject_id, var_data) in simulated_results:
-        # full VAR simulation
-        all_data_recordings.append(
-            SingleSubjectRecording(
-                subject_id=var_subject_id + "_VAR-full", data=deepcopy(var_data)
-            )
-        )
-        pbar.update(1)
-        # per segment VAR simulation
+    segment_data_for_ms = []
+    for (var_subject_id, _) in simulated_results:
         for var_segment in sampled_segments:
-            temp_var_data = deepcopy(var_data)
-            segment_subject_id = (
-                var_subject_id + f"_VAR-{var_segment+1}-segment"
-            )
             if var_segment + 1 == n_var_segments:
                 tmax = None
             else:
                 tmax = (var_segment + 1) * segment_length
-            temp_var_data.crop(
-                tmin=var_segment * segment_length,
-                tmax=tmax,
-            )
-            all_data_recordings.append(
-                SingleSubjectRecording(
-                    subject_id=segment_subject_id, data=temp_var_data
+            segment_data_for_ms.append(
+                (
+                    var_subject_id,
+                    var_segment,
+                    segment_length,
+                    tmax,
+                    result_dir,
                 )
             )
-            pbar.update(1)
-    assert len(all_data_recordings) == (
-        no_random_subjects * 3
-    ) + no_random_subjects * len(sampled_segments)
-    microstate_results = run_in_parallel(
-        _compute_microstates,
-        [recording for recording in all_data_recordings],
+
+    del simulated_results
+    logging.info("Computing microstates on VAR segments...")
+    segment_microstates_results = run_in_parallel(
+        _compute_microstates_var_segments,
+        segment_data_for_ms,
         workers=workers,
     )
-    logging.info("Microstates done. Now saving stuff...")
-    for recording in microstate_results:
-        recording.save_latent(path=result_dir)
-        plot_eeg_topomaps(
-            recording.latent_maps,
-            recording.info,
-            xlabels=[
-                f"r={np.abs(corr):.3f} vs. template"
-                for corr in recording.corrs_template
-            ],
-            tit=recording.subject_id,
-            fname=os.path.join(result_dir, f"{recording.subject_id}_topo.png"),
-            transparent=True,
+    segment_microstates_results = [
+        result for result in segment_microstates_results if result
+    ]
+    del segment_data_for_ms
+
+    microstate_results = full_microstate_results + segment_microstates_results
+    logging.info("Microstates done.")
+    if save_all:
+        logging.info("Saving stuff...")
+        run_in_parallel(
+            _save_recordings,
+            [(recording, result_dir) for recording in microstate_results],
         )
 
     logging.info("Saving maps into netcdf...")
@@ -336,6 +399,11 @@ def main(
     dyn_stats = pd.concat(dyn_stats)
     dyn_stats.to_csv(os.path.join(result_dir, "dynamic_stats.csv"))
 
+    if not save_all:
+        logging.info("Removing fif files...")
+        for file in glob(f"{result_dir}/*.fif"):
+            os.remove(file)
+
     logging.info("All done, bye.")
 
 
@@ -348,7 +416,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "no_random_subjects",
-        type=int,
+        type=str,
         help="Number of random subjects to select.",
     )
     parser.add_argument(
@@ -381,6 +449,12 @@ if __name__ == "__main__":
         default=cpu_count(),
         help="number of processes to launch",
     )
+    parser.add_argument(
+        "--save_all",
+        action="store_true",
+        default=False,
+        help="Whether to store all the stuff",
+    )
     args = parser.parse_args()
     main(
         args.input_data,
@@ -390,4 +464,5 @@ if __name__ == "__main__":
         args.n_samples_var_segments,
         args.data_type,
         args.workers,
+        args.save_all,
     )
