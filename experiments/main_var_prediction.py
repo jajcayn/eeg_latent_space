@@ -92,16 +92,20 @@ def _compute_microstates(args):
     ms_templates, channels_templates = load_Koenig_microstate_templates(
         n_states=NO_STATES
     )
-    recording.match_reorder_segmentation(ms_templates, channels_templates)
-    recording.compute_segmentation_stats()
-    recording.attrs = {
-        "no_states": NO_STATES,
-        "filter": DATA_FILTER,
-        "decomposition_type": "modified K-Means",
-        "use_gfp": USE_GFP,
-    }
-    assert recording.computed_stats
-    return recording
+    try:
+        recording.match_reorder_segmentation(ms_templates, channels_templates)
+        recording.compute_segmentation_stats()
+        recording.attrs = {
+            "no_states": NO_STATES,
+            "filter": DATA_FILTER,
+            "decomposition_type": "modified K-Means",
+            "use_gfp": USE_GFP,
+        }
+        assert recording.computed_stats
+        return recording
+
+    except TypeError:
+        return None
 
 
 def _compute_microstates_var_segments(args):
@@ -120,20 +124,23 @@ def _compute_microstates_var_segments(args):
         data=cropped,
     )
     recording.preprocess(DATA_FILTER[0], DATA_FILTER[1])
-    recording.run_latent_kmeans(n_states=NO_STATES, use_gfp=USE_GFP)
-    ms_templates, channels_templates = load_Koenig_microstate_templates(
-        n_states=NO_STATES
-    )
-    recording.match_reorder_segmentation(ms_templates, channels_templates)
-    recording.compute_segmentation_stats()
-    recording.attrs = {
-        "no_states": NO_STATES,
-        "filter": DATA_FILTER,
-        "decomposition_type": "modified K-Means",
-        "use_gfp": USE_GFP,
-    }
-    assert recording.computed_stats
-    return recording
+    try:
+        recording.run_latent_kmeans(n_states=NO_STATES, use_gfp=USE_GFP)
+        ms_templates, channels_templates = load_Koenig_microstate_templates(
+            n_states=NO_STATES
+        )
+        recording.match_reorder_segmentation(ms_templates, channels_templates)
+        recording.compute_segmentation_stats()
+        recording.attrs = {
+            "no_states": NO_STATES,
+            "filter": DATA_FILTER,
+            "decomposition_type": "modified K-Means",
+            "use_gfp": USE_GFP,
+        }
+        assert recording.computed_stats
+        return recording
+    except (TypeError, ValueError):
+        return None
 
 
 def _save_recordings(args):
@@ -337,6 +344,7 @@ def main(
     del segment_data_for_ms
 
     microstate_results = full_microstate_results + segment_microstates_results
+    microstate_results = [res for res in microstate_results if res is not None]
     logging.info("Microstates done.")
     if save_all:
         logging.info("Saving stuff...")

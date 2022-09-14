@@ -23,7 +23,9 @@ DECOMPOSITION_FUNCTIONS = {
     "kmeans": lambda x, ns: x.run_latent_kmeans(ns, use_gfp=True),
     "AAHC": lambda x, ns: x.run_latent_aahc(ns, use_gfp=True),
     "TAAHC": lambda x, ns: x.run_latent_taahc(ns, use_gfp=True),
-    "HMM": lambda x, ns: x.run_latent_hmm(ns, use_gfp=False, envelope=False),
+    "HMM": lambda x, ns: x.run_latent_hmm(
+        ns, use_gfp=True, envelope=False, pca_preprocess=0.9
+    ),
 }
 
 

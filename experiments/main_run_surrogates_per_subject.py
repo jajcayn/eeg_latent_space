@@ -41,7 +41,7 @@ def _compute_latent(args):
             n_states=no_states,
             use_gfp=use_gfp,
             pca_preprocess=0.9,
-            envelope=True,
+            envelope=False,
         )
     else:
         raise NotImplementedError("Unknown latent method")

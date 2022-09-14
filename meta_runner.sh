@@ -45,7 +45,7 @@ echo "$PBS_JOBID is running on node `hostname -f` in a scratch directory $SCRATC
 # python3 -u experiments/$pyscript $SCRATCHDIR/data/data_LEMON $decomptype --no_states 4 --filter 2.0 20.0 --data_type $datatype --use_gfp --crop 200.0 --workers 32
 
 # for running surrogates
-# python3 -u experiments/$pyscript $SCRATCHDIR/data/data_LEMON $decomptype $surrtype --no_states 4 --filter 2.0 20.0 --data_type $datatype --use_gfp --crop 200.0 --workers 32 --seed 42
+python3 -u experiments/$pyscript $SCRATCHDIR/data/data_LEMON $decomptype $surrtype --no_states 4 --filter 2.0 20.0 --data_type $datatype --use_gfp --crop 200.0 --workers 32 --seed 42
 
 # for EC/EO diff
 # python3 -u experiments/$pyscript $SCRATCHDIR/data/data_LEMON $surrtype --num_surrogates 20 --workers 30 --time_avg --seed 42
@@ -54,7 +54,7 @@ echo "$PBS_JOBID is running on node `hostname -f` in a scratch directory $SCRATC
 # python3 -u experiments/main_var_prediction.py $SCRATCHDIR/data/data_LEMON all $segment_length --var_total_length $var_total_length --data_type EC --workers 10
 
 # VAR correlations
-python3 -u experiments/main_var_corrs_segments.py $RESULTSDIR/$folder
+# python3 -u experiments/main_var_corrs_segments.py $RESULTSDIR/$folder
 
 cp -r $SCRATCHDIR $RESULTSDIR || export CLEAN_SCRATCH=false
 
