@@ -14,7 +14,11 @@ import mne
 import numpy as np
 import pandas as pd
 from data_utils import load_Koenig_microstate_templates
-from eeg_recording import SingleSubjectRecording, get_group_latent
+from eeg_recording import (
+    SingleSubjectRecording,
+    get_group_average_map,
+    get_group_latent,
+)
 from plotting import plot_eeg_topomaps
 from utils import RESULTS_ROOT, make_dirs, run_in_parallel, set_logger, today
 
@@ -118,15 +122,19 @@ def main(
         )
 
     logging.info("Computing group mean topomaps...")
-    group_mean, corrs_w_template, group_channels = get_group_latent(
+    # group_mean, corrs_w_template, group_channels = get_group_latent(
+    #     [recording.latent_maps for recording in results],
+    #     decomposition_type=decomp_type,
+    #     subject_channels=[recording.info["ch_names"] for recording in results],
+    # )
+    group_mean, group_channels = get_group_average_map(
         [recording.latent_maps for recording in results],
-        decomposition_type=decomp_type,
         subject_channels=[recording.info["ch_names"] for recording in results],
     )
     np.savez(
         os.path.join(result_dir, "group_mean.npz"),
         latent_maps=group_mean,
-        corrs_w_template=corrs_w_template,
+        # corrs_w_template=corrs_w_template,
         group_channels=group_channels,
     )
     max_chan_idx = np.array(
@@ -135,9 +143,9 @@ def main(
     plot_eeg_topomaps(
         group_mean,
         results[max_chan_idx].info.pick_channels(group_channels, ordered=True),
-        xlabels=[
-            f"r={np.abs(corr):.3f} vs. template" for corr in corrs_w_template
-        ],
+        # xlabels=[
+        #     f"r={np.abs(corr):.3f} vs. template" for corr in corrs_w_template
+        # ],
         tit=title,
         fname=os.path.join(result_dir, "group_mean_topo.png"),
         transparent=True,

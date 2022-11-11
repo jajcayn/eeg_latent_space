@@ -1,6 +1,6 @@
 black
 flake8
-hmmlearn
+hmmlearn<0.2.8
 hurst
 isort
 jupyterlab

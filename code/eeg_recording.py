@@ -468,6 +468,56 @@ class SingleSubjectRecording:
         return df
 
 
+def get_group_average_map(subject_maps, subject_channels):
+    """
+    Computes group-level latent representation from single subject ones by
+    checking polarity w.r.t Koenig templates and then computing a simple average.
+
+    :param subject_maps: list of individual subjects' latent maps
+    type subject_maps: list[np.ndarray]
+    :param subject_channels: list of all channel lists for all subjects
+    :type subject_channels: list[list[str]]
+    """
+    assert len(subject_maps) == len(subject_channels)
+    assert all(
+        subject_maps[i].shape[1] == len(subject_channels[i])
+        for i in range(len(subject_maps))
+    )
+
+    no_states = subject_maps[0].shape[0]
+    chans_all_subjects = reduce(np.intersect1d, subject_channels)
+
+    ms_templates, channels_templates = load_Koenig_microstate_templates(
+        n_states=no_states
+    )
+    sign_checked_subject_maps = []
+    for subject in range(len(subject_channels)):
+        # match channels with Koeing
+        _, idx_input, idx_sortby = np.intersect1d(
+            subject_channels[subject], channels_templates, return_indices=True
+        )
+        # check maps w.r.t template
+        new_maps = np.zeros_like(subject_maps[subject])
+        for i in range(no_states):
+            corr = sts.pearsonr(
+                subject_maps[subject][i, idx_input], ms_templates[i, idx_sortby]
+            )[0]
+            if corr >= 0:
+                new_maps[i, :] = subject_maps[subject][i, :]
+            else:
+                new_maps[i, :] = -1.0 * subject_maps[subject][i, :]
+        # match channels over all subjects
+        _, idx_input, _ = np.intersect1d(
+            subject_channels[subject],
+            chans_all_subjects,
+            return_indices=True,
+        )
+        sign_checked_subject_maps.append(new_maps[:, idx_input])
+    subject_maps = np.array(deepcopy(sign_checked_subject_maps))
+
+    return subject_maps.mean(axis=0), chans_all_subjects
+
+
 def get_group_latent(subject_maps, decomposition_type, subject_channels):
     """
     Computes group-level latent representation from single subject ones and

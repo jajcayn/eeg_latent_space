@@ -65,16 +65,17 @@ def main(
         group_topo = np.load(os.path.join(folder, "group_mean.npz"))
         xr_topo = (
             xr.DataArray(
-                np.append(
-                    group_topo["latent_maps"],
-                    group_topo["corrs_w_template"][:, np.newaxis],
-                    axis=1,
-                ),
+                group_topo["latent_maps"],
+                # np.append(
+                #     group_topo["latent_maps"],
+                #     group_topo["corrs_w_template"][:, np.newaxis],
+                #     axis=1,
+                # ),
                 dims=["latent map", "channels"],
                 coords={
                     "latent map": list(string.ascii_uppercase)[:n_states],
                     "channels": group_topo["group_channels"].tolist()
-                    + ["corr. w. template"],
+                    # + ["corr. w. template"],
                 },
             )
             .assign_coords(
