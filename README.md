@@ -1,6 +1,6 @@
 # Towards a dynamical understanding of microstate analysis of M/EEG data
 
-*Accompanying code for Jajcay & Hlinka: Towards a dynamical understanding of microstate analysis of M/EEG data (2023), preprint almost submitted to bioRxiv*
+*Accompanying code for Jajcay, N., & Hlinka, J. (2023). Towards a dynamical understanding of microstate analysis of M/EEG data. bioRxiv, 2023-04. doi: 10.1101/2023.04.09.536154*
 
 **Tidying up in progress**
 
